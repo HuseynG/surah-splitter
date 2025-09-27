@@ -92,7 +92,7 @@ class TranscriptionService:
                     self.device,
                     compute_type=self.compute_type,
                     language="ar",
-                    vad_method="silero",  # pyannote/silero, default: pyannote
+                    vad_method="pyannote",  # pyannote/silero, default: pyannote
                     # NOTE: The below options were an attempt to make the model repeat certain words that were not transcribed,
                     # for example, قواريرا in Surah 76, but it didn't make a difference.
                     # HOWEVER, what ACTUALLY made a difference is changing the vad_method above to silero instead of pyannote

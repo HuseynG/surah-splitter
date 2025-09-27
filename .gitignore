@@ -1,6 +1,7 @@
 # Files
 .vscode/settings.json
 .vscode/*.code-workspace
+.env
 
 # Folders
 __pycache__/
