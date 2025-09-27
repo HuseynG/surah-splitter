@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Quran Recitation Feedback</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #da190b);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #2196F3, #0b7dda);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .surah-selector {
+            margin-bottom: 20px;
+        }
+
+        .surah-selector select {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            min-width: 200px;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .reference-text {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-size: 24px;
+            line-height: 1.8;
+            text-align: right;
+            direction: rtl;
+            font-family: 'Amiri', 'Times New Roman', serif;
+        }
+
+        .word {
+            display: inline-block;
+            padding: 5px 8px;
+            margin: 2px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .word.current {
+            background: rgba(255, 255, 0, 0.3);
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+
+        .word.correct {
+            background: rgba(76, 175, 80, 0.8);
+            color: white;
+        }
+
+        .word.partial {
+            background: rgba(255, 193, 7, 0.8);
+            color: white;
+        }
+
+        .word.incorrect {
+            background: rgba(244, 67, 54, 0.8);
+            color: white;
+        }
+
+        .feedback-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .accuracy-meter {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .accuracy-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            background: conic-gradient(#4CAF50 0deg, #4CAF50 0deg, rgba(255,255,255,0.2) 0deg);
+        }
+
+        .recent-words {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .recent-word {
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .connected {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .disconnected {
+            background: #f44336;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .reference-text {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Disconnected</div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🕌 Real-time Quran Recitation Feedback</h1>
+            <p>Practice your memorization with live word-by-word feedback</p>
+        </div>
+
+        <div class="surah-selector">
+            <select id="surahSelect">
+                <option value="">Select a Surah to practice...</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startSession()">
+                🎤 Start Recitation
+            </button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopSession()" disabled>
+                ⏹️ Stop Session
+            </button>
+            <button class="btn btn-secondary" id="resetBtn" onclick="resetSession()">
+                🔄 Reset
+            </button>
+        </div>
+
+        <div class="status" id="status">
+            Select a Surah and click "Start Recitation" to begin
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="reference-text" id="referenceText">
+            <!-- Surah text will be loaded here -->
+        </div>
+
+        <div class="feedback-panel">
+            <div class="accuracy-meter">
+                <div class="accuracy-circle" id="accuracyCircle">0%</div>
+                <div>
+                    <h3>Overall Accuracy</h3>
+                    <p id="accuracyText">Start reciting to see your accuracy</p>
+                </div>
+            </div>
+            
+            <h4>Recent Words:</h4>
+            <div class="recent-words" id="recentWords">
+                <!-- Recent word feedback will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentSurah = null;
+        let isRecording = false;
+        let wordElements = [];
+        let currentWordIndex = 0;
+        let recentFeedback = [];
+
+        // Initialize WebSocket connection
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            
+            ws.onopen = function() {
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+            };
+            
+            ws.onclose = function() {
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'session_started':
+                    updateStatus('🎤 Listening... Start reciting!');
+                    break;
+                    
+                case 'session_stopped':
+                    updateStatus('Session stopped');
+                    break;
+                    
+                case 'progress_update':
+                    updateProgress(data.progress);
+                    break;
+                    
+                default:
+                    // Word feedback
+                    if (data.word_feedback) {
+                        processWordFeedback(data);
+                    }
+                    break;
+            }
+        }
+
+        // Load available surahs
+        async function loadSurahs() {
+            try {
+                const response = await fetch('/api/surahs');
+                const data = await response.json();
+                
+                const select = document.getElementById('surahSelect');
+                data.surahs.forEach(surah => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify(surah);
+                    option.textContent = `${surah.number}. ${surah.name} (${surah.english_name})`;
+                    select.appendChild(option);
+                });
+                
+                select.addEventListener('change', function() {
+                    if (this.value) {
+                        currentSurah = JSON.parse(this.value);
+                        displaySurahText(currentSurah);
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading surahs:', error);
+            }
+        }
+
+        // Display surah text with individual word elements
+        function displaySurahText(surah) {
+            const referenceText = document.getElementById('referenceText');
+            const words = surah.text.split(' ');
+            
+            wordElements = [];
+            referenceText.innerHTML = '';
+            
+            words.forEach((word, index) => {
+                const wordElement = document.createElement('span');
+                wordElement.className = 'word';
+                wordElement.textContent = word;
+                wordElement.dataset.index = index;
+                
+                wordElements.push(wordElement);
+                referenceText.appendChild(wordElement);
+                
+                if (index < words.length - 1) {
+                    referenceText.appendChild(document.createTextNode(' '));
+                }
+            });
+            
+            currentWordIndex = 0;
+            highlightCurrentWord();
+        }
+
+        // Highlight current word
+        function highlightCurrentWord() {
+            wordElements.forEach((el, index) => {
+                el.classList.remove('current');
+                if (index === currentWordIndex) {
+                    el.classList.add('current');
+                }
+            });
+        }
+
+        // Process word feedback
+        function processWordFeedback(feedback) {
+            feedback.word_feedback.forEach(wordFeedback => {
+                const position = wordFeedback.position;
+                if (position < wordElements.length) {
+                    const wordElement = wordElements[position];
+                    
+                    // Remove previous feedback classes
+                    wordElement.classList.remove('correct', 'partial', 'incorrect');
+                    
+                    // Add new feedback class
+                    if (wordFeedback.color === 'green') {
+                        wordElement.classList.add('correct');
+                    } else if (wordFeedback.color === 'yellow' || wordFeedback.color === 'orange') {
+                        wordElement.classList.add('partial');
+                    } else {
+                        wordElement.classList.add('incorrect');
+                    }
+                }
+                
+                // Add to recent feedback
+                addRecentWordFeedback(wordFeedback);
+            });
+            
+            // Update accuracy
+            updateAccuracy(feedback.overall_accuracy);
+            
+            // Update current position
+            if (feedback.current_position !== undefined) {
+                currentWordIndex = feedback.current_position;
+                highlightCurrentWord();
+            }
+        }
+
+        // Add recent word feedback
+        function addRecentWordFeedback(wordFeedback) {
+            recentFeedback.unshift(wordFeedback);
+            if (recentFeedback.length > 10) {
+                recentFeedback.pop();
+            }
+            
+            const recentWordsContainer = document.getElementById('recentWords');
+            recentWordsContainer.innerHTML = '';
+            
+            recentFeedback.forEach(feedback => {
+                const wordDiv = document.createElement('div');
+                wordDiv.className = `recent-word ${feedback.color}`;
+                wordDiv.innerHTML = `
+                    <span>${feedback.transcribed_word}</span>
+                    <span style="opacity: 0.7;">→ ${feedback.reference_word}</span>
+                `;
+                recentWordsContainer.appendChild(wordDiv);
+            });
+        }
+
+        // Update accuracy display
+        function updateAccuracy(accuracy) {
+            const percentage = Math.round(accuracy * 100);
+            const circle = document.getElementById('accuracyCircle');
+            const text = document.getElementById('accuracyText');
+            
+            circle.textContent = `${percentage}%`;
+            
+            // Update circle color based on accuracy
+            let color = '#f44336'; // Red
+            if (percentage >= 90) color = '#4CAF50'; // Green
+            else if (percentage >= 70) color = '#FF9800'; // Orange
+            else if (percentage >= 50) color = '#FFC107'; // Yellow
+            
+            circle.style.background = `conic-gradient(${color} ${percentage * 3.6}deg, rgba(255,255,255,0.2) ${percentage * 3.6}deg)`;
+            
+            if (percentage >= 90) {
+                text.textContent = 'Excellent! Keep it up! 🌟';
+            } else if (percentage >= 70) {
+                text.textContent = 'Good progress! 👍';
+            } else if (percentage >= 50) {
+                text.textContent = 'Keep practicing! 💪';
+            } else {
+                text.textContent = 'Take your time and focus 🎯';
+            }
+        }
+
+        // Update progress bar
+        function updateProgress(progress) {
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = `${progress.progress_percentage}%`;
+        }
+
+        // Update status message
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        // Start recitation session
+        function startSession() {
+            if (!currentSurah) {
+                alert('Please select a Surah first');
+                return;
+            }
+            
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocket connection not ready. Please wait...');
+                return;
+            }
+            
+            ws.send(JSON.stringify({
+                type: 'start_session',
+                reference_text: currentSurah.text,
+                surah_name: currentSurah.name,
+                surah_number: currentSurah.number
+            }));
+            
+            isRecording = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            // Reset word highlighting
+            wordElements.forEach(el => {
+                el.classList.remove('correct', 'partial', 'incorrect');
+            });
+            currentWordIndex = 0;
+            highlightCurrentWord();
+            recentFeedback = [];
+            document.getElementById('recentWords').innerHTML = '';
+        }
+
+        // Stop recitation session
+        function stopSession() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'stop_session'
+                }));
+            }
+            
+            isRecording = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            updateStatus('Session stopped. Click "Start Recitation" to begin again.');
+        }
+
+        // Reset session
+        function resetSession() {
+            stopSession();
+            
+            // Reset all word highlighting
+            wordElements.forEach(el => {
+                el.classList.remove('correct', 'partial', 'incorrect', 'current');
+            });
+            
+            currentWordIndex = 0;
+            if (wordElements.length > 0) {
+                highlightCurrentWord();
+            }
+            
+            // Reset feedback
+            recentFeedback = [];
+            document.getElementById('recentWords').innerHTML = '';
+            document.getElementById('progressFill').style.width = '0%';
+            updateAccuracy(0);
+            
+            updateStatus('Session reset. Select a Surah and click "Start Recitation" to begin.');
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+            loadSurahs();
+        });
+    </script>
+</body>
+</html>
