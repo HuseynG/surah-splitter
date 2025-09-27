@@ -16,3 +16,4 @@ data/quran_metadata/*
 
 ignore/
 tmp/
+.env
