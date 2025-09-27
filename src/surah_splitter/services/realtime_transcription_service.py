@@ -16,6 +16,7 @@ from collections import deque
 from surah_splitter.services.hybrid_transcription_service import HybridTranscriptionService
 from surah_splitter.services.quran_word_tracker import QuranWordTracker
 from surah_splitter.utils.app_logger import logger
+from surah_splitter.utils.audio_processing import AudioProcessor
 
 
 class RealtimeTranscriptionService:
@@ -38,6 +39,8 @@ class RealtimeTranscriptionService:
         self.chunk_size = int(self.sample_rate * self.chunk_duration)
         self.min_audio_length = 1.0  # Minimum 1 second of audio before processing
         self.current_surah = None
+        self.audio_processor = AudioProcessor(sample_rate=self.sample_rate)
+        self.enable_audio_processing = True
         
     def initialize(
         self,
@@ -46,19 +49,35 @@ class RealtimeTranscriptionService:
         azure_endpoint: Optional[str] = None,
         api_key: Optional[str] = None,
         word_feedback_callback: Optional[Callable] = None,
-        preloaded_service=None
+        preloaded_service=None,
+        latency_mode: str = "balanced"
     ):
         """
         Initialize the real-time service.
-        
+
         Args:
             reference_surah_text: The correct Quran text to compare against
             azure_endpoint: Azure OpenAI endpoint
             api_key: Azure OpenAI API key
             word_feedback_callback: Callback function for word-level feedback
             preloaded_service: Pre-initialized transcription service (optional)
+            latency_mode: Feedback latency mode ('instant', 'balanced', 'accurate')
         """
-        logger.info("Initializing real-time transcription service")
+        logger.info(f"Initializing real-time transcription service in {latency_mode} mode")
+
+        # Configure based on latency mode
+        if latency_mode == "instant":
+            self.chunk_duration = 0.2  # 200ms chunks for fastest feedback
+            self.min_audio_length = 0.5  # Process after 0.5s
+        elif latency_mode == "accurate":
+            self.chunk_duration = 1.0  # 1s chunks for best accuracy
+            self.min_audio_length = 2.0  # Process after 2s
+        else:  # balanced
+            self.chunk_duration = 0.5  # 500ms chunks
+            self.min_audio_length = 1.0  # Process after 1s
+
+        self.chunk_size = int(self.sample_rate * self.chunk_duration)
+        self.latency_mode = latency_mode
         
         # Use preloaded service if available, otherwise initialize new one
         if preloaded_service:
@@ -170,9 +189,27 @@ class RealtimeTranscriptionService:
                 logger.error(f"Transcription loop error: {e}")
 
     def _save_temp_audio(self, audio_data: np.ndarray) -> Path:
-        """Save audio data to temporary WAV file."""
+        """Save audio data to temporary WAV file with optional processing."""
         import soundfile as sf
-        
+
+        # Apply audio processing if enabled
+        if self.enable_audio_processing:
+            processed_audio, info = self.audio_processor.process_audio(
+                audio_data,
+                enable_noise_reduction=True,
+                enable_vad=True,
+                enable_agc=True,
+                enable_highpass=True
+            )
+
+            # Log audio stats
+            if info['has_speech']:
+                logger.debug(f"🎤 Audio processed: gain={info['gain_applied']:.2f}, has_speech={info['has_speech']}")
+            else:
+                logger.warning("🔇 No speech detected in audio after VAD")
+
+            audio_data = processed_audio
+
         temp_path = Path("/tmp/realtime_audio.wav")
         sf.write(temp_path, audio_data, self.sample_rate)
         return temp_path
@@ -245,6 +282,15 @@ class RealtimeTranscriptionService:
                     "end": word_seg["end"]
                 }
             }
+
+            # Add pronunciation hint if score is low
+            if match_result["score"] < 0.6:
+                hint = self._get_pronunciation_hint(
+                    transcribed_word,
+                    match_result["reference_word"]
+                )
+                if hint:
+                    word_feedback["hint"] = hint
             
             feedback["word_feedback"].append(word_feedback)
             
@@ -290,9 +336,9 @@ class RealtimeTranscriptionService:
             if not self.word_tracker.can_match_word_at_position(reference_word, i):
                 continue
             
-            # Use word tracker's intelligent scoring
+            # Use word tracker's intelligent scoring with context
             score = self.word_tracker.get_word_match_score(
-                transcribed_word, reference_word, i
+                transcribed_word, reference_word, i, self.reference_words
             )
             
             if score > best_score:
@@ -362,6 +408,48 @@ class RealtimeTranscriptionService:
             return "orange"     # Partial match
         else:
             return "red"        # Poor/no match
+
+    def _get_pronunciation_hint(self, transcribed: str, reference: str) -> Optional[str]:
+        """
+        Generate pronunciation hints for mismatched words.
+
+        Args:
+            transcribed: What was heard
+            reference: What was expected
+
+        Returns:
+            Pronunciation hint string or None
+        """
+        hints = []
+
+        # Clean words for comparison
+        clean_transcribed = self._clean_arabic_word(transcribed)
+        clean_reference = self._clean_arabic_word(reference)
+
+        # Check for common pronunciation mistakes
+        if len(clean_reference) > len(clean_transcribed):
+            hints.append(f"Try to pronounce all letters: {reference}")
+        elif len(clean_reference) < len(clean_transcribed):
+            hints.append(f"Word should be shorter: {reference}")
+
+        # Check for specific letter differences
+        if 'ص' in reference and 'س' in transcribed:
+            hints.append("Use emphatic 'Saad' (ص) not 'Seen' (س)")
+        elif 'ض' in reference and 'د' in transcribed:
+            hints.append("Use emphatic 'Daad' (ض) not 'Dal' (د)")
+        elif 'ط' in reference and 'ت' in transcribed:
+            hints.append("Use emphatic 'Taa' (ط) not 'Ta' (ت)")
+        elif 'ظ' in reference and 'ذ' in transcribed:
+            hints.append("Use emphatic 'Dhaa' (ظ) not 'Thal' (ذ)")
+        elif 'ق' in reference and 'ك' in transcribed:
+            hints.append("Use deep 'Qaaf' (ق) from throat, not 'Kaaf' (ك)")
+        elif 'غ' in reference and 'ع' in transcribed:
+            hints.append("Use 'Ghayn' (غ) not 'Ayn' (ع)")
+        elif 'ح' in reference and 'ه' in transcribed:
+            hints.append("Use 'Haa' (ح) from throat, not soft 'Ha' (ه)")
+
+        # Return the most relevant hint
+        return hints[0] if hints else None
 
     def get_current_progress(self) -> Dict[str, Any]:
         """Get current progress through the reference text."""

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from surah_splitter.utils.app_logger import logger
+from surah_splitter.utils.arabic_similarity import ArabicSimilarityScorer
 
 
 class QuranWordTracker:
@@ -20,6 +21,9 @@ class QuranWordTracker:
         self.current_ayah = None
         self.current_position = 0
         self.confirmed_positions = set()  # Positions that have been correctly identified
+        self.similarity_scorer = ArabicSimilarityScorer()
+        self.recent_words = []  # Keep track of recent words for context
+        self.context_window = 3  # Number of previous words to consider
         self.load_word_index()
 
     def load_word_index(self):
@@ -102,11 +106,11 @@ class QuranWordTracker:
     def confirm_word_match(self, word: str, position: int) -> bool:
         """
         Confirm that a word has been correctly matched at a specific position.
-        
+
         Args:
             word: Arabic word that was matched
             position: Position in surah where it was matched
-            
+
         Returns:
             True if confirmation was successful
         """
@@ -116,19 +120,25 @@ class QuranWordTracker:
 
         self.confirmed_positions.add(position)
         self.current_position = max(self.current_position, position + 1)
-        
+
+        # Add to recent words for context tracking
+        self.recent_words.append(word)
+        if len(self.recent_words) > self.context_window * 2:
+            self.recent_words.pop(0)  # Keep only recent words
+
         logger.info(f"✅ Confirmed '{word}' at position {position}, advancing to {self.current_position}")
         return True
 
-    def get_word_match_score(self, transcribed_word: str, reference_word: str, position: int) -> float:
+    def get_word_match_score(self, transcribed_word: str, reference_word: str, position: int, reference_words: List[str] = None) -> float:
         """
-        Calculate match score considering word progression rules.
-        
+        Calculate match score considering word progression rules and context.
+
         Args:
             transcribed_word: Word from transcription
             reference_word: Word from reference text
             position: Position in reference text
-            
+            reference_words: Full reference text words for context
+
         Returns:
             Match score (0.0 to 1.0), 0.0 if position should be skipped
         """
@@ -142,7 +152,7 @@ class QuranWordTracker:
 
         # Calculate basic similarity
         similarity = self._calculate_word_similarity(transcribed_word, reference_word)
-        
+
         # Bonus for positions that are at or just after current position
         position_bonus = 1.0
         if position == self.current_position:
@@ -152,30 +162,62 @@ class QuranWordTracker:
         elif position > self.current_position + 5:
             position_bonus = 0.8  # Slight penalty for words too far ahead
 
-        return min(1.0, similarity * position_bonus)
+        # Context-aware bonus
+        context_bonus = self._calculate_context_bonus(position, reference_words)
+
+        # Combine all factors
+        final_score = similarity * position_bonus * context_bonus
+
+        return min(1.0, final_score)
+
+    def _calculate_context_bonus(self, position: int, reference_words: List[str]) -> float:
+        """
+        Calculate context bonus based on previous words.
+
+        Args:
+            position: Position being evaluated
+            reference_words: Full reference text
+
+        Returns:
+            Context bonus multiplier (0.8 to 1.2)
+        """
+        if not reference_words or not self.recent_words:
+            return 1.0
+
+        # Check if previous words match the context
+        context_matches = 0
+        for i in range(1, min(self.context_window + 1, position + 1)):
+            if position - i >= 0 and len(self.recent_words) >= i:
+                ref_word = reference_words[position - i]
+                recent_word = self.recent_words[-i]
+
+                # Check if recent word matches reference context
+                similarity = self.similarity_scorer.calculate_similarity(
+                    recent_word,
+                    ref_word,
+                    consider_diacritics=False,
+                    phonetic_matching=False  # Exact context matching
+                )
+                if similarity > 0.8:
+                    context_matches += 1
+
+        # Calculate bonus based on context matches
+        if context_matches >= 2:
+            return 1.2  # Strong context match
+        elif context_matches >= 1:
+            return 1.1  # Some context match
+        else:
+            return 0.9  # No context match (slight penalty)
 
     def _calculate_word_similarity(self, word1: str, word2: str) -> float:
-        """Calculate similarity between two Arabic words."""
-        # Clean both words (remove diacritics)
-        clean1 = self._clean_arabic_word(word1)
-        clean2 = self._clean_arabic_word(word2)
-        
-        # Exact match
-        if clean1 == clean2:
-            return 1.0
-        
-        # Partial match (for different pronunciations)
-        if len(clean1) >= 3 and len(clean2) >= 3:
-            if clean1 in clean2 or clean2 in clean1:
-                return 0.8
-        
-        # Character-level similarity
-        max_len = max(len(clean1), len(clean2))
-        if max_len == 0:
-            return 0.0
-        
-        common_chars = sum(1 for c1, c2 in zip(clean1, clean2) if c1 == c2)
-        return common_chars / max_len
+        """Calculate similarity between two Arabic words using advanced scoring."""
+        # Use the advanced similarity scorer
+        return self.similarity_scorer.calculate_similarity(
+            word1,
+            word2,
+            consider_diacritics=False,  # Ignore diacritics for more flexible matching
+            phonetic_matching=True  # Enable phonetic similarity
+        )
 
     def _clean_arabic_word(self, word: str) -> str:
         """Clean Arabic word by removing diacritics."""

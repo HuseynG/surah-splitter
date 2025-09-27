@@ -81,6 +81,39 @@
             transform: none;
         }
 
+        .color-legend {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .color-legend h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .legend-items {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
         .surah-selector {
             margin-bottom: 20px;
         }
@@ -95,12 +128,77 @@
             min-width: 200px;
         }
 
+        .latency-selector {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .latency-selector > label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .latency-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .latency-option {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        input[type="radio"]:checked + .latency-option {
+            background: rgba(76, 175, 80, 0.3);
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="radio"] {
+            display: none;
+        }
+
+        .latency-desc {
+            display: block;
+            font-size: 0.85em;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
         .status {
             text-align: center;
             margin-bottom: 20px;
             padding: 15px;
             border-radius: 10px;
             background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-info {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .progress-detail {
+            color: #4CAF50;
+        }
+
+        .accuracy-detail {
+            color: #FFC107;
+        }
+
+        .separator {
+            margin: 0 10px;
+            opacity: 0.6;
         }
 
         .progress-bar {
@@ -159,6 +257,23 @@
         .word.incorrect {
             background: rgba(244, 67, 54, 0.8);
             color: white;
+        }
+
+        .word.next-expected {
+            background: rgba(33, 150, 243, 0.5);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 5px rgba(33, 150, 243, 0.5);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 15px rgba(33, 150, 243, 0.8);
+            }
         }
 
         .feedback-panel {
@@ -248,10 +363,57 @@
             <p>Practice your memorization with live word-by-word feedback</p>
         </div>
 
+        <!-- Color Legend -->
+        <div class="color-legend">
+            <h3>Color Guide:</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <span class="legend-color" style="background: rgba(76, 175, 80, 0.8);"></span>
+                    <span>Perfect Match</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: rgba(255, 193, 7, 0.8);"></span>
+                    <span>Close Match</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: rgba(244, 67, 54, 0.8);"></span>
+                    <span>Needs Improvement</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: rgba(33, 150, 243, 0.5);"></span>
+                    <span>Next Expected Word</span>
+                </div>
+            </div>
+        </div>
+
         <div class="surah-selector">
             <select id="surahSelect">
                 <option value="">Select a Surah to practice...</option>
             </select>
+        </div>
+
+        <!-- Latency Mode Selector -->
+        <div class="latency-selector">
+            <label for="latencyMode">Feedback Mode:</label>
+            <div class="latency-options">
+                <input type="radio" id="instant" name="latencyMode" value="instant" checked>
+                <label for="instant" class="latency-option">
+                    ⚡ Instant
+                    <span class="latency-desc">Fast feedback (~200ms)</span>
+                </label>
+
+                <input type="radio" id="balanced" name="latencyMode" value="balanced">
+                <label for="balanced" class="latency-option">
+                    ⚖️ Balanced
+                    <span class="latency-desc">Balanced speed & accuracy</span>
+                </label>
+
+                <input type="radio" id="accurate" name="latencyMode" value="accurate">
+                <label for="accurate" class="latency-option">
+                    🎯 Accurate
+                    <span class="latency-desc">Highest accuracy (~2s)</span>
+                </label>
+            </div>
         </div>
 
         <div class="controls">
@@ -268,6 +430,12 @@
 
         <div class="status" id="status">
             Select a Surah and click "Start Recitation" to begin
+        </div>
+
+        <div class="progress-info" id="progressInfo">
+            <span class="progress-detail">Word <span id="currentWord">0</span> of <span id="totalWords">0</span></span>
+            <span class="separator">•</span>
+            <span class="accuracy-detail"><span id="currentAccuracy">0</span>% Accuracy</span>
         </div>
 
         <div class="progress-bar">
@@ -377,34 +545,46 @@
         function displaySurahText(surah) {
             const referenceText = document.getElementById('referenceText');
             const words = surah.text.split(' ');
-            
+
             wordElements = [];
             referenceText.innerHTML = '';
-            
+
             words.forEach((word, index) => {
                 const wordElement = document.createElement('span');
                 wordElement.className = 'word';
                 wordElement.textContent = word;
                 wordElement.dataset.index = index;
-                
+
                 wordElements.push(wordElement);
                 referenceText.appendChild(wordElement);
-                
+
                 if (index < words.length - 1) {
                     referenceText.appendChild(document.createTextNode(' '));
                 }
             });
-            
+
             currentWordIndex = 0;
             highlightCurrentWord();
+
+            // Update progress info
+            document.getElementById('totalWords').textContent = words.length;
+            document.getElementById('currentWord').textContent = '0';
+            document.getElementById('currentAccuracy').textContent = '0';
         }
 
-        // Highlight current word
+        // Highlight current word and next expected word
         function highlightCurrentWord() {
             wordElements.forEach((el, index) => {
-                el.classList.remove('current');
+                el.classList.remove('current', 'next-expected');
                 if (index === currentWordIndex) {
                     el.classList.add('current');
+                } else if (index === currentWordIndex + 1) {
+                    // Highlight next expected word if it hasn't been processed yet
+                    if (!el.classList.contains('correct') &&
+                        !el.classList.contains('partial') &&
+                        !el.classList.contains('incorrect')) {
+                        el.classList.add('next-expected');
+                    }
                 }
             });
         }
@@ -440,6 +620,9 @@
             if (feedback.current_position !== undefined) {
                 currentWordIndex = feedback.current_position;
                 highlightCurrentWord();
+
+                // Update progress info
+                document.getElementById('currentWord').textContent = currentWordIndex;
             }
         }
 
@@ -456,9 +639,14 @@
             recentFeedback.forEach(feedback => {
                 const wordDiv = document.createElement('div');
                 wordDiv.className = `recent-word ${feedback.color}`;
+                let hintHtml = '';
+                if (feedback.hint) {
+                    hintHtml = `<div style="font-size: 0.85em; margin-top: 4px; opacity: 0.9;">💡 ${feedback.hint}</div>`;
+                }
                 wordDiv.innerHTML = `
                     <span>${feedback.transcribed_word}</span>
                     <span style="opacity: 0.7;">→ ${feedback.reference_word}</span>
+                    ${hintHtml}
                 `;
                 recentWordsContainer.appendChild(wordDiv);
             });
@@ -469,17 +657,20 @@
             const percentage = Math.round(accuracy * 100);
             const circle = document.getElementById('accuracyCircle');
             const text = document.getElementById('accuracyText');
-            
+
             circle.textContent = `${percentage}%`;
-            
+
+            // Update progress info accuracy
+            document.getElementById('currentAccuracy').textContent = percentage;
+
             // Update circle color based on accuracy
             let color = '#f44336'; // Red
             if (percentage >= 90) color = '#4CAF50'; // Green
             else if (percentage >= 70) color = '#FF9800'; // Orange
             else if (percentage >= 50) color = '#FFC107'; // Yellow
-            
+
             circle.style.background = `conic-gradient(${color} ${percentage * 3.6}deg, rgba(255,255,255,0.2) ${percentage * 3.6}deg)`;
-            
+
             if (percentage >= 90) {
                 text.textContent = 'Excellent! Keep it up! 🌟';
             } else if (percentage >= 70) {
@@ -508,17 +699,21 @@
                 alert('Please select a Surah first');
                 return;
             }
-            
+
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 alert('WebSocket connection not ready. Please wait...');
                 return;
             }
-            
+
+            // Get selected latency mode
+            const latencyMode = document.querySelector('input[name="latencyMode"]:checked').value;
+
             ws.send(JSON.stringify({
                 type: 'start_session',
                 reference_text: currentSurah.text,
                 surah_name: currentSurah.name,
-                surah_number: currentSurah.number
+                surah_number: currentSurah.number,
+                latency_mode: latencyMode
             }));
             
             isRecording = true;

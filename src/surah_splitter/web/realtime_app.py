@@ -137,15 +137,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 reference_text = message["reference_text"]
                 surah_name = message.get("surah_name", "Unknown")
                 surah_number = message.get("surah_number", 1)
-                
-                logger.info(f"Starting session for {surah_name} (Surah {surah_number})")
-                
+                latency_mode = message.get("latency_mode", "balanced")
+
+                logger.info(f"Starting session for {surah_name} (Surah {surah_number}) in {latency_mode} mode")
+
                 # Initialize real-time service with preloaded models if available
                 realtime_service.initialize(
                     reference_surah_text=reference_text,
                     surah_number=surah_number,
                     word_feedback_callback=word_feedback_callback,
-                    preloaded_service=preloaded_transcription_service
+                    preloaded_service=preloaded_transcription_service,
+                    latency_mode=latency_mode
                 )
                 
                 # Start listening
