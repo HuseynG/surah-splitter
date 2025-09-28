@@ -1,0 +1,23 @@
+# FastAPI and Server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+websockets==12.0
+
+# Data Models and Validation
+pydantic==2.5.0
+
+# HTTP Client for Testing
+requests==2.31.0
+websocket-client==1.7.0
+
+# Async Support
+aiofiles==23.2.1
+
+# CORS Support
+python-multipart==0.0.6
+
+# Audio Processing (optional, if needed)
+numpy==1.24.3
+
+# JSON and Data Handling
+python-json-logger==2.0.7

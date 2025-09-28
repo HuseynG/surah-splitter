@@ -465,27 +465,31 @@
     <script>
         let ws = null;
         let currentSurah = null;
+        let currentSessionId = null;
         let isRecording = false;
         let wordElements = [];
         let currentWordIndex = 0;
         let recentFeedback = [];
 
+        // API Base URL
+        const API_BASE = 'http://localhost:8001';
+
         // Initialize WebSocket connection
         function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-            
+            if (!currentSessionId) return;
+
+            ws = new WebSocket(`ws://localhost:8001/ws/${currentSessionId}`);
+
             ws.onopen = function() {
                 document.getElementById('connectionStatus').textContent = 'Connected';
                 document.getElementById('connectionStatus').className = 'connection-status connected';
             };
-            
+
             ws.onclose = function() {
                 document.getElementById('connectionStatus').textContent = 'Disconnected';
                 document.getElementById('connectionStatus').className = 'connection-status disconnected';
-                setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
             };
-            
+
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
                 handleWebSocketMessage(data);
@@ -498,15 +502,19 @@
                 case 'session_started':
                     updateStatus('🎤 Listening... Start reciting!');
                     break;
-                    
+
                 case 'session_stopped':
                     updateStatus('Session stopped');
                     break;
-                    
+
                 case 'progress_update':
                     updateProgress(data.progress);
                     break;
-                    
+
+                case 'word_feedback':
+                    processWordFeedback(data);
+                    break;
+
                 default:
                     // Word feedback
                     if (data.word_feedback) {
@@ -519,20 +527,24 @@
         // Load available surahs
         async function loadSurahs() {
             try {
-                const response = await fetch('/api/surahs');
-                const data = await response.json();
-                
+                const response = await fetch(`${API_BASE}/api/surahs`);
+                const surahs = await response.json();
+
                 const select = document.getElementById('surahSelect');
-                data.surahs.forEach(surah => {
+                select.innerHTML = '<option value="">Select a Surah to practice...</option>';
+
+                surahs.forEach(surah => {
                     const option = document.createElement('option');
-                    option.value = JSON.stringify(surah);
+                    option.value = surah.number;
                     option.textContent = `${surah.number}. ${surah.name} (${surah.english_name})`;
+                    option.dataset.surahData = JSON.stringify(surah);
                     select.appendChild(option);
                 });
-                
-                select.addEventListener('change', function() {
+
+                select.addEventListener('change', async function() {
                     if (this.value) {
-                        currentSurah = JSON.parse(this.value);
+                        const response = await fetch(`${API_BASE}/api/surahs/${this.value}`);
+                        currentSurah = await response.json();
                         displaySurahText(currentSurah);
                     }
                 });
@@ -694,83 +706,115 @@
         }
 
         // Start recitation session
-        function startSession() {
+        async function startSession() {
             if (!currentSurah) {
                 alert('Please select a Surah first');
-                return;
-            }
-
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                alert('WebSocket connection not ready. Please wait...');
                 return;
             }
 
             // Get selected latency mode
             const latencyMode = document.querySelector('input[name="latencyMode"]:checked').value;
 
-            ws.send(JSON.stringify({
-                type: 'start_session',
-                reference_text: currentSurah.text,
-                surah_name: currentSurah.name,
-                surah_number: currentSurah.number,
-                latency_mode: latencyMode
-            }));
-            
-            isRecording = true;
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
-            
-            // Reset word highlighting
-            wordElements.forEach(el => {
-                el.classList.remove('correct', 'partial', 'incorrect');
-            });
-            currentWordIndex = 0;
-            highlightCurrentWord();
-            recentFeedback = [];
-            document.getElementById('recentWords').innerHTML = '';
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        surah_number: currentSurah.number,
+                        latency_mode: latencyMode,
+                        enable_tajweed: true,
+                        enable_hints: true,
+                        difficulty_level: 2
+                    })
+                });
+
+                const data = await response.json();
+                currentSessionId = data.session_id;
+
+                // Connect WebSocket with session ID
+                connectWebSocket();
+
+                isRecording = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+
+                // Update total words
+                document.getElementById('totalWords').textContent = data.total_words;
+
+                // Reset word highlighting
+                wordElements.forEach(el => {
+                    el.classList.remove('correct', 'partial', 'incorrect');
+                });
+                currentWordIndex = 0;
+                highlightCurrentWord();
+                recentFeedback = [];
+                document.getElementById('recentWords').innerHTML = '';
+
+                updateStatus('🎤 Session started. Start reciting!');
+            } catch (error) {
+                console.error('Error starting session:', error);
+                alert('Failed to start session. Please try again.');
+            }
         }
 
         // Stop recitation session
-        function stopSession() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'stop_session'
-                }));
+        async function stopSession() {
+            if (!currentSessionId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions/${currentSessionId}/stop`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (ws) {
+                    ws.close();
+                }
+
+                isRecording = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+
+                updateStatus(`Session stopped. Duration: ${Math.round(data.duration)}s, Accuracy: ${Math.round(data.final_accuracy * 100)}%`);
+            } catch (error) {
+                console.error('Error stopping session:', error);
             }
-            
-            isRecording = false;
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
-            
-            updateStatus('Session stopped. Click "Start Recitation" to begin again.');
         }
 
         // Reset session
-        function resetSession() {
-            stopSession();
-            
+        async function resetSession() {
+            if (currentSessionId) {
+                try {
+                    await fetch(`${API_BASE}/api/sessions/${currentSessionId}/reset`, {
+                        method: 'POST'
+                    });
+                } catch (error) {
+                    console.error('Error resetting session:', error);
+                }
+            }
+
             // Reset all word highlighting
             wordElements.forEach(el => {
                 el.classList.remove('correct', 'partial', 'incorrect', 'current');
             });
-            
+
             currentWordIndex = 0;
             if (wordElements.length > 0) {
                 highlightCurrentWord();
             }
-            
+
             // Reset feedback
             recentFeedback = [];
             document.getElementById('recentWords').innerHTML = '';
             document.getElementById('progressFill').style.width = '0%';
             updateAccuracy(0);
-            
+
             updateStatus('Session reset. Select a Surah and click "Start Recitation" to begin.');
         }
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            connectWebSocket();
             loadSurahs();
         });
     </script>
