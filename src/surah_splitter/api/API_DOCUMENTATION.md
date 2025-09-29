@@ -312,7 +312,232 @@ ws://localhost:8001/ws/{session_id}
 }
 ```
 
-### 8. Utility Endpoints
+### 8. GPT Audio Analysis Endpoints
+
+#### Tajweed Analysis
+```http
+POST /api/audio/analyze/tajweed
+```
+
+Analyzes Tajweed rules in Quranic recitation using Azure GPT Audio models. Provides comprehensive feedback on pronunciation, rules application, and areas for improvement.
+
+**Method 1: File Upload (multipart/form-data)**
+
+**Request:**
+- `audio_file`: Audio file (WAV/MP3/M4A/WEBM/OGG, max 25MB)
+- `language`: Feedback language (`en` or `ar`, optional, default: `en`)
+- `include_audio_feedback`: Return audio feedback (`true`/`false`, optional, default: `false`)
+- `surah_name`: Surah name (optional, for context)
+- `surah_number`: Surah number (optional, for context)
+- `ayah_number`: Ayah number (optional, for context)
+
+**Method 2: JSON with Base64 Audio (application/json)**
+
+**Request Body:**
+```json
+{
+  "audio_data": "base64_encoded_audio_string",
+  "audio_format": "wav",
+  "language": "en",
+  "include_audio_feedback": false,
+  "surah_context": {
+    "surah_name": "Al-Fatiha",
+    "surah_number": 1,
+    "ayah_number": 1
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "detected_surah": "Al-Fatiha",
+    "riwayah": "Hafs",
+    "chunks": [
+      {
+        "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+        "start_time": 0.0,
+        "end_time": 3.5,
+        "issues": ["Minor Ghunnah duration"],
+        "correct_application": ["Proper Madd application"]
+      }
+    ],
+    "issues": [
+      {
+        "category": "GHUNNAH",
+        "rule": "Ghunnah Duration",
+        "word": "الرَّحْمَٰنِ",
+        "timestamp": 2.1,
+        "severity": "LOW",
+        "description": "Ghunnah should be held for 2 counts",
+        "correction": "Extend the nasal sound to full 2-count duration"
+      }
+    ],
+    "scores": {
+      "makharij": 4.2,
+      "sifat": 3.8,
+      "ghunnah": 4.5,
+      "madd": 4.0,
+      "noon_rules": 3.9,
+      "overall": 4.1
+    },
+    "overall_comment": "Good recitation with minor areas for improvement. Focus on maintaining consistent Ghunnah duration.",
+    "next_steps": [
+      "Practice Ghunnah exercises with 2-count timing",
+      "Review Noon Sakinah rules with a teacher"
+    ],
+    "audio_feedback": {
+      "text_feedback": "Your recitation shows good understanding...",
+      "audio_base64": "base64_encoded_audio_feedback",
+      "audio_format": "wav"
+    },
+    "timestamp": "2024-01-15T10:30:00"
+  },
+  "metadata": {
+    "processing_time": 2.5,
+    "audio_duration": 15.3,
+    "language": "en"
+  }
+}
+```
+
+#### Recitation Accuracy Analysis
+```http
+POST /api/audio/analyze/recitation
+```
+
+Compares recitation against reference Arabic text to check accuracy, identify missed/added words, and provide improvement suggestions.
+
+**Method 1: File Upload (multipart/form-data)**
+
+**Request:**
+- `audio_file`: Audio file (WAV/MP3/M4A/WEBM/OGG, max 25MB)
+- `reference_text`: Arabic reference text (required)
+- `language`: Feedback language (`en` or `ar`, optional, default: `en`)
+- `include_audio_feedback`: Return audio feedback (`true`/`false`, optional, default: `false`)
+- `surah_name`: Surah name (optional, for context)
+- `surah_number`: Surah number (optional, for context)
+- `ayah_number`: Ayah number (optional, for context)
+
+**Method 2: JSON with Base64 Audio (application/json)**
+
+**Request Body:**
+```json
+{
+  "audio_data": "base64_encoded_audio_string",
+  "audio_format": "wav",
+  "reference_text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+  "language": "ar",
+  "include_audio_feedback": true,
+  "surah_info": {
+    "surah_name": "Al-Fatiha",
+    "surah_number": 1,
+    "ayah_number": 1
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "accuracy_score": 87.5,
+    "missed_words": ["الْعَالَمِينَ"],
+    "added_words": [],
+    "mispronounced_words": [
+      {
+        "word": "الرَّحِيمِ",
+        "timestamp": 3.2,
+        "issue": "Incorrect vowel length on 'حِي'"
+      }
+    ],
+    "feedback": "Good recitation with 87.5% accuracy. Focus on the pronunciation of 'الرَّحِيمِ' and ensure you don't miss 'الْعَالَمِينَ'.",
+    "suggestions": [
+      "Practice the pronunciation of 'الرَّحِيمِ' with proper vowel lengths",
+      "Review the complete verse to avoid omissions",
+      "Consider slowing down slightly for better accuracy"
+    ],
+    "audio_feedback": {
+      "text_feedback": "ما شاء الله، قراءة جيدة...",
+      "audio_base64": "base64_encoded_audio_feedback",
+      "audio_format": "wav"
+    },
+    "timestamp": "2024-01-15T10:35:00"
+  },
+  "metadata": {
+    "processing_time": 3.1,
+    "audio_duration": 12.5,
+    "language": "ar",
+    "reference_length": 29
+  }
+}
+```
+
+#### Validate Audio File
+```http
+POST /api/audio/analyze/validate
+```
+
+Validates audio file before analysis to ensure it meets requirements.
+
+**Request:** `multipart/form-data`
+- `audio_file`: Audio file to validate
+
+**Response:**
+```json
+{
+  "valid": true,
+  "format": "wav",
+  "duration": 15.3,
+  "size_mb": 2.4,
+  "sample_rate": 16000,
+  "channels": 1,
+  "issues": []
+}
+```
+
+**Error Response:**
+```json
+{
+  "valid": false,
+  "issues": [
+    "File size exceeds 25MB limit",
+    "Audio duration exceeds 5 minutes"
+  ]
+}
+```
+
+#### GPT Audio Service Status
+```http
+GET /api/audio/analyze/status
+```
+
+Check GPT Audio service health and configuration.
+
+**Response:**
+```json
+{
+  "service": "GPT Audio Analysis",
+  "initialized": true,
+  "connection_status": "connected",
+  "supported_languages": ["en", "ar"],
+  "supported_formats": ["wav", "mp3", "m4a", "webm", "ogg"],
+  "max_audio_size_mb": 25.0,
+  "max_audio_duration_seconds": 300.0,
+  "features": {
+    "tajweed_analysis": true,
+    "recitation_accuracy": true,
+    "audio_feedback": true,
+    "batch_processing": false
+  },
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+### 9. Utility Endpoints
 
 #### Health Check
 ```http
@@ -326,8 +551,37 @@ GET /health
   "services": {
     "realtime": "active",
     "hybrid": "active",
-    "metadata": "active"
+    "metadata": "active",
+    "gpt_audio": "active"
   }
+}
+```
+
+#### Detailed Health Check
+```http
+GET /health/detailed
+```
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00",
+  "uptime_seconds": 3600,
+  "services": {
+    "realtime": "active",
+    "hybrid": "active",
+    "metadata": "active",
+    "gpt_audio": "active"
+  },
+  "system": {
+    "cpu_percent": 25.5,
+    "memory_percent": 45.2,
+    "memory_used_mb": 512.3,
+    "memory_available_mb": 1024.7,
+    "python_version": "3.11.0"
+  },
+  "active_sessions": 3,
+  "active_websockets": 2
 }
 ```
 
@@ -497,16 +751,56 @@ response = requests.post(
 )
 ```
 
+## GPT Audio Analysis Details
+
+### Supported Audio Formats
+- **WAV**: Uncompressed, best quality (recommended)
+- **MP3**: Compressed, widely supported
+- **M4A**: Apple format, good compression
+- **WEBM**: Web-optimized format
+- **OGG**: Open-source compressed format
+
+### Audio Requirements
+- **Maximum file size**: 25MB
+- **Maximum duration**: 5 minutes (300 seconds)
+- **Recommended sample rate**: 16kHz or higher
+- **Channels**: Mono or stereo (mono preferred for smaller size)
+- **Bit rate**: 128kbps minimum for compressed formats
+
+### Language Support
+- **English (`en`)**: Full feedback in English with transliteration
+- **Arabic (`ar`)**: Native Arabic feedback with proper RTL formatting
+
+### Tajweed Categories
+- **MAKHARIJ**: Points of articulation
+- **SIFAT**: Characteristics of letters
+- **GHUNNAH**: Nasalization rules
+- **MADD**: Elongation rules
+- **NOON_RULES**: Rules for Noon Sakinah and Tanween
+- **QALQALAH**: Echo/bounce effect
+- **OTHER**: Miscellaneous rules
+
+### Error Codes (GPT Audio Specific)
+- **422**: Invalid audio format or parameters
+- **413**: Audio file too large (>25MB)
+- **400**: Missing required parameters (e.g., reference_text for recitation)
+- **408**: Analysis timeout (>60 seconds)
+- **503**: GPT Audio service unavailable
+- **429**: Rate limit exceeded
+
 ## Rate Limiting
 
-- Audio submission: 10 requests per second per session
-- WebSocket messages: 100 messages per second per connection
-- API endpoints: 100 requests per minute per IP
+- **GPT Audio Analysis**: 5 requests per minute per session
+- **Audio submission**: 10 requests per second per session
+- **WebSocket messages**: 100 messages per second per connection
+- **API endpoints**: 100 requests per minute per IP
 
 ## Notes
 
 - All text is expected in UTF-8 encoding
 - Arabic text should be in standard Quranic script
-- Audio formats supported: WAV, MP3, WEBM, OGG
-- Maximum audio file size: 10MB
+- Audio formats supported: WAV, MP3, M4A, WEBM, OGG
+- Maximum audio file size: 25MB (GPT Audio), 10MB (regular)
 - Session timeout: 30 minutes of inactivity
+- GPT Audio analysis may take 2-10 seconds depending on audio length
+- Audio feedback adds ~2 seconds to processing time

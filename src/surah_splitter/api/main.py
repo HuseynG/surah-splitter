@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from enum import Enum
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Body, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Body, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -24,12 +24,71 @@ from surah_splitter.services.hybrid_transcription_service import HybridTranscrip
 from surah_splitter.services.quran_metadata_service import QuranMetadataService
 from surah_splitter.services.personalized_learning import PersonalizedLearningService
 from surah_splitter.services.progress_tracker import ProgressTracker
+from surah_splitter.services.azure_gpt_audio_service import AzureGPTAudioService
 from surah_splitter.utils.app_logger import logger
+from surah_splitter.utils.audio_encoding import (
+    encode_audio_for_gpt,
+    validate_audio_for_gpt,
+    compress_audio_for_gpt
+)
+from surah_splitter.models.gpt_audio_models import (
+    TajweedAnalysisResponse,
+    RecitationAnalysisResponse,
+    AudioSubmissionRequest,
+    AnalysisLanguage,
+    AnalysisType,
+    AnalysisError
+)
 
 app = FastAPI(
     title="Quran Recitation Feedback API",
-    description="Comprehensive API for real-time Quran recitation feedback and learning",
-    version="1.0.0"
+    description="""
+    Comprehensive API for real-time Quran recitation feedback and learning.
+
+    ## Features
+
+    - **Real-time Transcription**: WebSocket-based real-time audio processing
+    - **Tajweed Analysis**: Advanced AI-powered Tajweed rules evaluation using Azure GPT Audio
+    - **Recitation Accuracy**: Compare recitation against reference text
+    - **Personalized Learning**: Adaptive difficulty and progress tracking
+    - **Multi-format Support**: Accepts audio files, base64 audio, and streaming
+
+    ## GPT Audio Endpoints
+
+    The API includes advanced GPT-powered audio analysis:
+
+    - `/api/audio/analyze/tajweed`: Analyze Tajweed rules in recitation
+    - `/api/audio/analyze/recitation`: Check recitation accuracy against reference
+
+    Both endpoints support:
+    - File uploads (multipart/form-data)
+    - Base64 JSON submissions (application/json)
+    - Multiple audio formats (WAV, MP3, M4A, WebM, OGG)
+    - Multi-language feedback (English and Arabic)
+    """,
+    version="1.0.0",
+    openapi_tags=[
+        {
+            "name": "GPT Audio Analysis",
+            "description": "Advanced AI-powered audio analysis using Azure GPT Audio models"
+        },
+        {
+            "name": "Real-time",
+            "description": "WebSocket-based real-time transcription and feedback"
+        },
+        {
+            "name": "Session",
+            "description": "Session management for recitation practice"
+        },
+        {
+            "name": "Learning",
+            "description": "Personalized learning and progress tracking"
+        },
+        {
+            "name": "Metadata",
+            "description": "Quran metadata and information"
+        }
+    ]
 )
 
 app.add_middleware(
@@ -112,12 +171,77 @@ class UISettings(BaseModel):
     show_tajweed: bool = True
     animation_speed: float = 0.3
 
+# GPT Audio Analysis Request/Response Models
+class TajweedAnalysisRequest(BaseModel):
+    """Request model for Tajweed analysis.
+
+    Example:
+    {
+        "audio_data": "base64_encoded_audio_string...",
+        "audio_format": "wav",
+        "language": "en",
+        "include_audio_feedback": false,
+        "surah_context": {
+            "surah_name": "Al-Fatiha",
+            "surah_number": 1,
+            "ayah_number": 1
+        }
+    }
+    """
+    audio_data: Optional[str] = Field(None, description="Base64 encoded audio data")
+    audio_format: str = Field("wav", description="Audio format (wav, mp3, m4a, webm, ogg)")
+    language: str = Field("en", description="Language for feedback (en or ar)")
+    include_audio_feedback: bool = Field(False, description="Include audio feedback in response")
+    surah_context: Optional[Dict[str, Any]] = Field(None, description="Optional Surah/Ayah context")
+
+class RecitationAnalysisRequest(BaseModel):
+    """Request model for recitation accuracy analysis.
+
+    Example:
+    {
+        "audio_data": "base64_encoded_audio_string...",
+        "reference_text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+        "audio_format": "wav",
+        "language": "en",
+        "include_audio_feedback": false,
+        "surah_info": {
+            "surah_name": "Al-Fatiha",
+            "surah_number": 1,
+            "ayah_number": 1
+        }
+    }
+    """
+    audio_data: Optional[str] = Field(None, description="Base64 encoded audio data")
+    reference_text: str = Field(..., description="The correct Arabic text to compare against")
+    audio_format: str = Field("wav", description="Audio format (wav, mp3, m4a, webm, ogg)")
+    language: str = Field("en", description="Language for feedback (en or ar)")
+    include_audio_feedback: bool = Field(False, description="Include audio feedback in response")
+    surah_info: Optional[Dict[str, Any]] = Field(None, description="Optional Surah/Ayah information")
+
+class TajweedAnalysisAPIResponse(BaseModel):
+    """API response wrapper for Tajweed analysis."""
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class RecitationAnalysisAPIResponse(BaseModel):
+    """API response wrapper for recitation analysis."""
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
 # Global service instances
 realtime_service = RealtimeTranscriptionService()
 hybrid_service = HybridTranscriptionService()
 metadata_service = QuranMetadataService()
 learning_service = PersonalizedLearningService()
 progress_tracker = ProgressTracker()
+gpt_audio_service = AzureGPTAudioService()
+
+# Application start time for uptime tracking
+app_start_time = datetime.now()
 
 # Session management
 active_sessions: Dict[str, Dict[str, Any]] = {}
@@ -331,7 +455,8 @@ async def start_session(config: SessionConfig) -> Dict[str, Any]:
         latency_mode=config.latency_mode
     )
 
-    realtime_service.start_listening()
+    # Don't start listening from microphone in Docker - audio comes via WebSocket
+    # realtime_service.start_listening()
 
     return {
         "session_id": session_id,
@@ -346,7 +471,8 @@ async def stop_session(session_id: str):
     if session_id not in active_sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    realtime_service.stop_listening()
+    # Don't stop listening since we're not using microphone
+    # realtime_service.stop_listening()
     active_sessions[session_id]["status"] = SessionStatus.COMPLETED
     active_sessions[session_id]["end_time"] = datetime.now().isoformat()
 
@@ -663,8 +789,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, session_id)
-        if session_id in active_sessions:
-            realtime_service.stop_listening()
+        # Don't stop listening since we're not using microphone
+        # if session_id in active_sessions:
+        #     realtime_service.stop_listening()
 
 # Serve Demo HTML
 @app.get("/", response_class=HTMLResponse)
@@ -677,18 +804,95 @@ async def serve_demo():
     else:
         return HTMLResponse(content="<h1>Demo HTML not found. Please ensure realtime_feedback.html exists in templates/</h1>")
 
-# Health Check
-@app.get("/health")
+# Serve Full Demo HTML with all modes
+@app.get("/demo", response_class=HTMLResponse)
+async def serve_full_demo():
+    """Serve the full API demo HTML page with all three modes."""
+    html_path = Path(__file__).parent.parent.parent.parent / "templates" / "api_demo.html"
+    if html_path.exists():
+        with open(html_path, "r") as f:
+            return HTMLResponse(content=f.read())
+    else:
+        return HTMLResponse(content="<h1>Demo HTML not found. Please ensure api_demo.html exists in templates/</h1>")
+
+# Health Check Endpoints
+@app.get("/health", response_class=JSONResponse)
 async def health_check():
-    """Health check endpoint."""
+    """Simple health check endpoint for Docker health checks.
+    Returns HTTP 200 with minimal JSON response."""
+    return JSONResponse(
+        status_code=200,
+        content={"status": "ok"}
+    )
+
+@app.get("/health/detailed")
+async def health_check_detailed():
+    """Detailed health check endpoint with comprehensive service information."""
+    import psutil
+    import sys
+
+    # Get system metrics
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+        memory_used_mb = memory.used / (1024 * 1024)
+        memory_available_mb = memory.available / (1024 * 1024)
+    except Exception as e:
+        logger.warning(f"Could not get system metrics: {e}")
+        cpu_percent = None
+        memory_percent = None
+        memory_used_mb = None
+        memory_available_mb = None
+
+    # Check service status with error handling
+    services_status = {}
+    try:
+        services_status["realtime"] = "active" if realtime_service else "inactive"
+    except Exception as e:
+        services_status["realtime"] = f"error: {str(e)}"
+
+    try:
+        services_status["hybrid"] = "active" if hybrid_service else "inactive"
+    except Exception as e:
+        services_status["hybrid"] = f"error: {str(e)}"
+
+    try:
+        services_status["metadata"] = "active" if metadata_service else "inactive"
+    except Exception as e:
+        services_status["metadata"] = f"error: {str(e)}"
+
+    try:
+        services_status["learning"] = "active" if learning_service else "inactive"
+    except Exception as e:
+        services_status["learning"] = f"error: {str(e)}"
+
+    try:
+        services_status["progress_tracker"] = "active" if progress_tracker else "inactive"
+    except Exception as e:
+        services_status["progress_tracker"] = f"error: {str(e)}"
+
+    # Determine overall health status
+    overall_status = "healthy"
+    if any("error" in status for status in services_status.values()):
+        overall_status = "degraded"
+    if all("error" in status or status == "inactive" for status in services_status.values()):
+        overall_status = "unhealthy"
+
     return {
-        "status": "healthy",
+        "status": overall_status,
         "timestamp": datetime.now().isoformat(),
-        "services": {
-            "realtime": "active" if realtime_service else "inactive",
-            "hybrid": "active" if hybrid_service else "inactive",
-            "metadata": "active" if metadata_service else "inactive"
-        }
+        "uptime_seconds": (datetime.now() - app_start_time).total_seconds() if 'app_start_time' in globals() else None,
+        "services": services_status,
+        "system": {
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory_percent,
+            "memory_used_mb": memory_used_mb,
+            "memory_available_mb": memory_available_mb,
+            "python_version": sys.version,
+        },
+        "active_sessions": len(active_sessions),
+        "active_websockets": sum(len(connections) for connections in manager.active_connections.values())
     }
 
 # Export endpoints for testing
@@ -723,6 +927,482 @@ async def export_session(session_id: str, format: str = Query(default="json", en
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename=session_{session_id}.csv"}
         )
+
+
+# Helper functions for GPT audio processing
+def validate_audio_for_gpt(audio_data: bytes) -> tuple[bool, str]:
+    """
+    Validate audio data for GPT API submission.
+
+    Args:
+        audio_data: Raw audio bytes
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Check size (GPT has 25MB limit)
+    max_size = 25 * 1024 * 1024  # 25MB
+    if len(audio_data) > max_size:
+        return False, f"Audio file too large ({len(audio_data) / 1024 / 1024:.1f}MB). Maximum is 25MB."
+
+    # Check minimum size
+    if len(audio_data) < 100:
+        return False, "Audio file too small or empty"
+
+    return True, ""
+
+
+def compress_audio_for_gpt(audio_data: bytes) -> tuple[bytes, dict]:
+    """
+    Compress audio to fit GPT API requirements.
+
+    Args:
+        audio_data: Original audio bytes
+
+    Returns:
+        Tuple of (compressed_audio, metadata)
+    """
+    # For now, return original (you could implement actual compression here)
+    return audio_data, {"compressed": False}
+
+
+# GPT Audio Analysis Endpoints
+@app.post("/api/audio/analyze/tajweed",
+          response_model=TajweedAnalysisAPIResponse,
+          tags=["GPT Audio Analysis"],
+          summary="Analyze Tajweed Rules in Recitation",
+          response_description="Comprehensive Tajweed analysis with scores and recommendations")
+async def analyze_tajweed_endpoint(
+    request: Request,
+    json_request: Optional[TajweedAnalysisRequest] = None,
+    audio_file: Optional[UploadFile] = File(None),
+    language: Optional[str] = Form(None),
+    include_audio_feedback: Optional[bool] = Form(None),
+    surah_name: Optional[str] = Form(None),
+    surah_number: Optional[int] = Form(None),
+    ayah_number: Optional[int] = Form(None)
+):
+    """
+    Analyze Tajweed rules in Quranic recitation using GPT Audio.
+
+    This endpoint accepts audio in two ways:
+    1. File upload (multipart/form-data) - Upload an audio file directly
+    2. Base64 JSON (application/json) - Send base64 encoded audio in request body
+
+    Returns comprehensive Tajweed analysis including:
+    - Detected issues in Makharij, Sifat, Ghunnah, Madd, etc.
+    - Scores for different aspects (0-5 scale)
+    - Specific feedback with timestamps
+    - Recommendations for improvement
+    - Optional audio feedback (if requested)
+
+    Example response:
+    {
+        "success": true,
+        "data": {
+            "detected_surah": "Al-Fatiha",
+            "riwayah": "Hafs",
+            "chunks": [...],
+            "issues": [...],
+            "scores": {
+                "makharij": 4.2,
+                "sifat": 3.8,
+                "ghunnah": 4.5,
+                "madd": 4.0,
+                "noon_rules": 3.9,
+                "overall": 4.1
+            },
+            "overall_comment": "Good recitation with room for improvement...",
+            "next_steps": ["Focus on...", "Practice..."]
+        },
+        "metadata": {
+            "processing_time": 2.5,
+            "audio_duration": 15.3,
+            "language": "en"
+        }
+    }
+    """
+    try:
+        start_time = datetime.now()
+
+        # Initialize service if needed
+        if not gpt_audio_service.is_initialized:
+            gpt_audio_service.initialize()
+
+        # Detect request type based on content type
+        content_type = request.headers.get("content-type", "")
+        is_json_request = "application/json" in content_type
+
+        # Handle audio input - either from file upload or base64 in request
+        audio_data = None
+        audio_format = "wav"
+        surah_context = None
+
+        if is_json_request:
+            # JSON request with base64 audio
+            if not json_request:
+                # Parse JSON body manually if not already parsed
+                body = await request.body()
+                import json as json_lib
+                json_data = json_lib.loads(body)
+                json_request = TajweedAnalysisRequest(**json_data)
+
+            if not json_request.audio_data:
+                raise HTTPException(status_code=400, detail="No audio data in JSON request")
+
+            logger.info("Processing Tajweed analysis from base64 audio data")
+            audio_data = base64.b64decode(json_request.audio_data)
+            audio_format = json_request.audio_format
+            language = json_request.language
+            include_audio_feedback = json_request.include_audio_feedback
+            surah_context = json_request.surah_context
+        elif audio_file:
+            # Multipart form upload path
+            logger.info(f"Processing Tajweed analysis from uploaded file: {audio_file.filename}")
+            audio_data = await audio_file.read()
+            audio_format = audio_file.filename.split('.')[-1].lower() if '.' in audio_file.filename else "wav"
+
+            # Use form data values, with defaults
+            language = language or "en"
+            include_audio_feedback = include_audio_feedback or False
+
+            # Build surah context from form data
+            if surah_name or surah_number:
+                surah_context = {
+                    "surah_name": surah_name,
+                    "surah_number": surah_number,
+                    "ayah_number": ayah_number
+                }
+        else:
+            raise HTTPException(status_code=400, detail="No audio data provided. Send either multipart file upload or JSON with base64 audio.")
+
+        # Validate audio
+        is_valid, error_msg = validate_audio_for_gpt(audio_data)
+        if not is_valid:
+            # Try to compress if too large
+            if "too large" in error_msg.lower():
+                logger.info("Compressing audio for GPT API submission")
+                audio_data, metadata = compress_audio_for_gpt(audio_data)
+            else:
+                raise HTTPException(status_code=400, detail=f"Audio validation failed: {error_msg}")
+
+        # Validate language
+        if language not in ["en", "ar"]:
+            raise HTTPException(status_code=400, detail="Language must be 'en' or 'ar'")
+
+        # Perform Tajweed analysis
+        logger.info(f"Starting Tajweed analysis with language={language}, audio_feedback={include_audio_feedback}")
+
+        result = await gpt_audio_service.analyze_tajweed(
+            audio_input=audio_data,
+            language=language,
+            surah_context=surah_context,
+            include_audio_feedback=include_audio_feedback
+        )
+
+        # Calculate processing time
+        processing_time = (datetime.now() - start_time).total_seconds()
+
+        # Prepare response
+        response_data = result.to_simplified_dict() if hasattr(result, 'to_simplified_dict') else result.__dict__
+
+        return TajweedAnalysisAPIResponse(
+            success=True,
+            data=response_data,
+            metadata={
+                "processing_time": processing_time,
+                "audio_duration": response_data.get("chunks", [{}])[-1].get("end_time", 0) if response_data.get("chunks") else 0,
+                "language": language,
+                "has_audio_feedback": include_audio_feedback and result.audio_feedback is not None
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Tajweed analysis failed: {str(e)}")
+        return TajweedAnalysisAPIResponse(
+            success=False,
+            error=str(e),
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
+
+
+@app.post("/api/audio/analyze/recitation",
+          response_model=RecitationAnalysisAPIResponse,
+          tags=["GPT Audio Analysis"],
+          summary="Check Recitation Accuracy",
+          response_description="Detailed accuracy analysis comparing recitation to reference text")
+async def analyze_recitation_endpoint(
+    request: Request,
+    json_request: Optional[RecitationAnalysisRequest] = None,
+    audio_file: Optional[UploadFile] = File(None),
+    reference_text: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
+    include_audio_feedback: Optional[bool] = Form(None),
+    surah_name: Optional[str] = Form(None),
+    surah_number: Optional[int] = Form(None),
+    ayah_number: Optional[int] = Form(None)
+):
+    """
+    Analyze recitation accuracy against reference Quranic text using GPT Audio.
+
+    This endpoint compares the recited audio against the correct Arabic text to identify:
+    - Missed words
+    - Added words
+    - Mispronounced words
+    - Overall accuracy score
+
+    Accepts audio in two ways:
+    1. File upload (multipart/form-data) - Upload an audio file directly
+    2. Base64 JSON (application/json) - Send base64 encoded audio in request body
+
+    The reference_text parameter should contain the correct Arabic text with proper diacritics.
+
+    Example response:
+    {
+        "success": true,
+        "data": {
+            "accuracy_score": 92.5,
+            "missed_words": ["word1", "word2"],
+            "added_words": [],
+            "mispronounced_words": [
+                {
+                    "word": "الرَّحْمَٰنِ",
+                    "timestamp": 2.5,
+                    "issue": "Incorrect pronunciation of 'Ra'"
+                }
+            ],
+            "feedback": "Overall good recitation with minor issues...",
+            "suggestions": [
+                "Practice the pronunciation of 'Ra' with tafkheem",
+                "Ensure complete recitation of all words"
+            ]
+        },
+        "metadata": {
+            "processing_time": 2.1,
+            "reference_length": 15,
+            "language": "en"
+        }
+    }
+    """
+    try:
+        start_time = datetime.now()
+
+        # Initialize service if needed
+        if not gpt_audio_service.is_initialized:
+            gpt_audio_service.initialize()
+
+        # Detect request type based on content type
+        content_type = request.headers.get("content-type", "")
+        is_json_request = "application/json" in content_type
+
+        # Handle audio input
+        audio_data = None
+        audio_format = "wav"
+        surah_info = None
+
+        if is_json_request:
+            # JSON request with base64 audio
+            if not json_request:
+                # Parse JSON body manually if not already parsed
+                body = await request.body()
+                import json as json_lib
+                json_data = json_lib.loads(body)
+                json_request = RecitationAnalysisRequest(**json_data)
+
+            if not json_request.audio_data:
+                raise HTTPException(status_code=400, detail="No audio data in JSON request")
+
+            logger.info("Processing recitation analysis from base64 audio data")
+            audio_data = base64.b64decode(json_request.audio_data)
+            audio_format = json_request.audio_format
+            reference_text = json_request.reference_text
+            language = json_request.language
+            include_audio_feedback = json_request.include_audio_feedback
+            surah_info = json_request.surah_info
+        elif audio_file:
+            # Multipart form upload path
+            logger.info(f"Processing recitation analysis from uploaded file: {audio_file.filename}")
+            audio_data = await audio_file.read()
+            audio_format = audio_file.filename.split('.')[-1].lower() if '.' in audio_file.filename else "wav"
+
+            # Use form data values, with defaults
+            language = language or "en"
+            include_audio_feedback = include_audio_feedback or False
+
+            # Build surah info from form data
+            if surah_name or surah_number:
+                surah_info = {
+                    "surah_name": surah_name,
+                    "surah_number": surah_number,
+                    "ayah_number": ayah_number
+                }
+        else:
+            raise HTTPException(status_code=400, detail="No audio data provided. Send either multipart file upload or JSON with base64 audio.")
+
+        # Validate inputs
+        if not reference_text or not reference_text.strip():
+            raise HTTPException(status_code=400, detail="Reference text is required")
+
+        # Validate audio
+        is_valid, error_msg = validate_audio_for_gpt(audio_data)
+        if not is_valid:
+            if "too large" in error_msg.lower():
+                logger.info("Compressing audio for GPT API submission")
+                audio_data, metadata = compress_audio_for_gpt(audio_data)
+            else:
+                raise HTTPException(status_code=400, detail=f"Audio validation failed: {error_msg}")
+
+        # Validate language
+        if language not in ["en", "ar"]:
+            raise HTTPException(status_code=400, detail="Language must be 'en' or 'ar'")
+
+        # Perform recitation analysis
+        logger.info(f"Starting recitation analysis with language={language}, reference_length={len(reference_text.split())}")
+
+        result = await gpt_audio_service.analyze_recitation(
+            audio_input=audio_data,
+            reference_text=reference_text,
+            language=language,
+            surah_info=surah_info,
+            include_audio_feedback=include_audio_feedback
+        )
+
+        # Calculate processing time
+        processing_time = (datetime.now() - start_time).total_seconds()
+
+        # Prepare response
+        response_data = result.to_simplified_dict() if hasattr(result, 'to_simplified_dict') else result.__dict__
+
+        return RecitationAnalysisAPIResponse(
+            success=True,
+            data=response_data,
+            metadata={
+                "processing_time": processing_time,
+                "reference_length": len(reference_text.split()),
+                "language": language,
+                "has_audio_feedback": include_audio_feedback and result.audio_feedback is not None
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Recitation analysis failed: {str(e)}")
+        return RecitationAnalysisAPIResponse(
+            success=False,
+            error=str(e),
+            metadata={"timestamp": datetime.now().isoformat()}
+        )
+
+
+@app.get("/api/audio/analyze/status",
+         tags=["GPT Audio Analysis"],
+         summary="Check GPT Audio Service Status")
+async def get_analysis_service_status():
+    """
+    Check the status of the GPT Audio Analysis service.
+
+    Returns information about:
+    - Service initialization status
+    - Available languages
+    - Supported audio formats
+    - Configuration status
+    """
+    try:
+        is_initialized = gpt_audio_service.is_initialized
+
+        # Try to test connection if initialized
+        connection_ok = False
+        if is_initialized:
+            try:
+                connection_ok = await gpt_audio_service.test_connection()
+            except:
+                connection_ok = False
+
+        return {
+            "service": "GPT Audio Analysis",
+            "initialized": is_initialized,
+            "connection_status": "connected" if connection_ok else "disconnected",
+            "supported_languages": ["en", "ar"],
+            "supported_formats": ["wav", "mp3", "m4a", "webm", "ogg"],
+            "max_audio_size_mb": 25.0,
+            "max_audio_duration_seconds": 300.0,
+            "features": {
+                "tajweed_analysis": True,
+                "recitation_accuracy": True,
+                "audio_feedback": True,
+                "batch_processing": False  # Not yet implemented
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get service status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get service status")
+
+
+@app.post("/api/audio/analyze/validate",
+          tags=["GPT Audio Analysis"],
+          summary="Validate Audio Before Analysis")
+async def validate_audio_for_analysis(
+    audio_file: UploadFile = File(...),
+):
+    """
+    Validate an audio file for GPT analysis without processing it.
+
+    Useful for pre-flight checks before submitting for analysis.
+    Returns validation results including any issues that need to be addressed.
+    """
+    try:
+        audio_data = await audio_file.read()
+        audio_format = audio_file.filename.split('.')[-1].lower() if '.' in audio_file.filename else "wav"
+
+        # Perform validation
+        is_valid, error_msg = validate_audio_for_gpt(audio_data)
+
+        # Get audio metadata
+        from surah_splitter.utils.audio_encoding import _load_audio
+        _, metadata = _load_audio(audio_data)
+
+        return {
+            "valid": is_valid,
+            "error": error_msg if not is_valid else None,
+            "metadata": {
+                "format": audio_format,
+                "size_mb": len(audio_data) / (1024 * 1024),
+                "duration_seconds": metadata.get("duration", 0),
+                "sample_rate": metadata.get("sample_rate", 0),
+                "channels": metadata.get("channels", 0)
+            },
+            "recommendations": []
+        }
+
+        # Add recommendations if needed
+        response = {
+            "valid": is_valid,
+            "error": error_msg if not is_valid else None,
+            "metadata": {
+                "format": audio_format,
+                "size_mb": len(audio_data) / (1024 * 1024),
+                "duration_seconds": metadata.get("duration", 0),
+                "sample_rate": metadata.get("sample_rate", 0),
+                "channels": metadata.get("channels", 0)
+            },
+            "recommendations": []
+        }
+
+        # Add recommendations
+        if not is_valid and "too large" in (error_msg or "").lower():
+            response["recommendations"].append("Consider compressing the audio or splitting into smaller segments")
+        if metadata.get("sample_rate", 0) > 16000:
+            response["recommendations"].append("Consider downsampling to 16kHz for optimal processing")
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Audio validation failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Validation failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

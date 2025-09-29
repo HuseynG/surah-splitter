@@ -1,5 +1,414 @@
 /* Additional styles for real-time feedback app */
 
+/* ============= NEW GPT AUDIO ANALYSIS STYLES ============= */
+
+/* Mode Selection Styles */
+.mode-selector {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
+    animation: fadeIn 0.5s ease;
+}
+
+.mode-selector h3 {
+    margin-bottom: 15px;
+    color: white;
+    font-size: 1.1em;
+}
+
+.mode-option {
+    padding: 12px 15px;
+    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 2px solid transparent;
+}
+
+.mode-option:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.mode-option.active {
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+    transform: translateX(5px);
+    border-color: #4CAF50;
+}
+
+.mode-option.active::after {
+    content: '✓';
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+/* Language Toggle Styles */
+.language-toggle {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    padding: 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.language-option {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    border: 2px solid transparent;
+}
+
+.language-option:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.language-option.active {
+    background: linear-gradient(45deg, #2196F3, #1976D2);
+    box-shadow: 0 3px 10px rgba(33, 150, 243, 0.4);
+    border-color: #2196F3;
+}
+
+/* Analysis Results Styles */
+.analysis-results {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 20px;
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.analysis-results.show {
+    display: block;
+    animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.analysis-section {
+    color: white;
+}
+
+.analysis-section h4 {
+    margin: 20px 0 10px;
+    color: #4CAF50;
+    font-size: 1.2em;
+    border-bottom: 2px solid rgba(76, 175, 80, 0.3);
+    padding-bottom: 5px;
+}
+
+.analysis-section ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.analysis-section ul li {
+    padding: 10px;
+    margin: 5px 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid #4CAF50;
+}
+
+.analysis-section ul li strong {
+    color: #FFC107;
+}
+
+.analysis-section ul li em {
+    color: #81C784;
+    font-style: normal;
+    display: block;
+    margin-top: 5px;
+}
+
+/* Scores Grid Styles */
+.scores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.score-item {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.score-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.score-label {
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 8px;
+}
+
+.score-value {
+    font-size: 2.2em;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.score-value.high {
+    color: #4CAF50;
+    text-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+}
+
+.score-value.medium {
+    color: #FFC107;
+    text-shadow: 0 0 20px rgba(255, 193, 7, 0.6);
+}
+
+.score-value.low {
+    color: #f44336;
+    text-shadow: 0 0 20px rgba(244, 67, 54, 0.6);
+}
+
+/* Reference Text Input Styles */
+.reference-text-input {
+    width: 100%;
+    min-height: 120px;
+    padding: 15px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    font-size: 18px;
+    direction: rtl;
+    font-family: 'Amiri', 'Traditional Arabic', 'Times New Roman', serif;
+    margin: 15px 0;
+    display: none;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    resize: vertical;
+}
+
+.reference-text-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+}
+
+.reference-text-input.show {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+/* Audio Feedback Player Styles */
+.audio-feedback-player {
+    background: linear-gradient(135deg, rgba(155, 39, 176, 0.2), rgba(103, 58, 183, 0.2));
+    border-radius: 12px;
+    padding: 15px;
+    margin: 15px 0;
+    display: none;
+    border: 1px solid rgba(155, 39, 176, 0.3);
+}
+
+.audio-feedback-player.show {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+.audio-feedback-player h4 {
+    color: #CE93D8;
+    margin-bottom: 10px;
+}
+
+.audio-feedback-player audio {
+    width: 100%;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mode Instructions Styles */
+.mode-instructions {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+    font-size: 14px;
+    border-left: 4px solid #2196F3;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.mode-instructions strong {
+    color: #64B5F6;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Analysis Button Styles */
+.analysis-button {
+    background: linear-gradient(45deg, #9c27b0, #673ab7);
+    padding: 15px 30px;
+    font-size: 16px;
+    margin: 20px auto;
+    display: none;
+    border: none;
+    color: white;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+}
+
+.analysis-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(156, 39, 176, 0.4);
+    background: linear-gradient(45deg, #ab47bc, #7e57c2);
+}
+
+.analysis-button.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Surah Context Inputs */
+#surahContext {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+#surahContext input {
+    margin: 5px 0;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#surahContext input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pulse-analysis {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+    }
+}
+
+/* Responsive Design for GPT Features */
+@media (max-width: 768px) {
+    .mode-selector {
+        padding: 10px;
+    }
+
+    .scores-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .score-value {
+        font-size: 1.8em;
+    }
+
+    .analysis-button {
+        width: 100%;
+        padding: 12px 20px;
+    }
+
+    .language-toggle {
+        flex-direction: column;
+    }
+
+    .language-option {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .scores-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .mode-option {
+        padding: 10px;
+        font-size: 14px;
+    }
+}
+
+/* Dark Theme Integration */
+.analysis-results.dark {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.analysis-section.dark h4 {
+    color: #81C784;
+}
+
+/* Loading States */
+.analyzing {
+    position: relative;
+    overflow: hidden;
+}
+
+.analyzing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: loading-sweep 2s infinite;
+}
+
+@keyframes loading-sweep {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Original pulse animation */
 .pulse {
     animation: pulse 2s infinite;
 }

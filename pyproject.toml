@@ -12,7 +12,7 @@ keywords = [
     "splitter",
     "audio-processing",
 ]
-license = { file = "LICENSE" }
+license = { text = "MIT" }
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
     { name = "OdyAsh", email = "ashicsresources@gmail.com" }
@@ -45,6 +45,7 @@ dependencies = [
     "uvicorn>=0.24.0",
     "websockets>=12.0",
     "jinja2>=3.1.0",
+    "python-multipart>=0.0.5",
     # Audio processing enhancements
     "webrtcvad>=2.0.10",
     "scipy>=1.10.0",
@@ -52,6 +53,8 @@ dependencies = [
     "scikit-learn>=1.3.0",
     # Streaming STT
     "azure-cognitiveservices-speech>=1.31.0",
+    # System monitoring for health checks
+    "psutil>=5.9.0",
 ]
 
 [build-system]

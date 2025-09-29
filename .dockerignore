@@ -1,0 +1,137 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Development files
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+.env.local
+.env.*.local
+
+# Testing and coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+test/
+tests/
+
+# Documentation
+docs/
+*.md
+!README.md
+LICENSE
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+temp/
+
+# Sample and media files
+*.m4a
+*.mp3
+*.wav
+*.mp4
+*.avi
+*.mov
+Sample-*.m4a
+samples/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Docker files (avoid recursive builds)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# IDE specific
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Node modules (if any)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Mac specific
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows specific
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk

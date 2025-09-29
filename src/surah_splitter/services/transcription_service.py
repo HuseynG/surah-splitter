@@ -5,6 +5,8 @@ Service for transcribing audio using WhisperX.
 from pathlib import Path
 from typing import Optional
 import gc
+import threading
+import os
 
 from huggingface_hub import snapshot_download
 
@@ -15,12 +17,17 @@ from huggingface_hub.utils import _runtime
 _runtime._is_google_colab = False
 
 from surah_splitter.models.all_models import RecognizedSentencesAndWords
-from surah_splitter.utils.app_logger import logger, LoggerTimingContext
+from loguru import logger
+from surah_splitter.utils.app_logger import LoggerTimingContext
 from surah_splitter.utils.file_utils import save_json, load_json  # noqa: F401
 
 
 class TranscriptionService:
     """Service for transcribing audio using WhisperX."""
+
+    # Class-level lock for thread-safe model initialization
+    _init_lock = threading.Lock()
+    _models_initialized = {}
 
     def __init__(self):
         self.device = None
@@ -82,8 +89,18 @@ class TranscriptionService:
             # If it's a HuggingFace model, first download it
             # Otherwise assume it's a whisperx model size
             if "/" in model_name:
-                with LoggerTimingContext(f'Downloading "{model_name}" from HuggingFace'):
-                    model_path = snapshot_download(repo_id=model_name)
+                # Use thread-safe model download
+                with self._init_lock:
+                    # Check if model already downloaded
+                    if model_name not in self._models_initialized:
+                        # Disable tqdm in multithread environment to avoid concurrency issues
+                        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+                        with LoggerTimingContext(f'Downloading "{model_name}" from HuggingFace'):
+                            model_path = snapshot_download(repo_id=model_name)
+                            self._models_initialized[model_name] = model_path
+                    else:
+                        model_path = self._models_initialized[model_name]
+                        logger.debug(f"Using cached model from {model_path}")
                     model_name = model_path  # Use the local path after download
 
             with LoggerTimingContext("Loading WhisperX model"):

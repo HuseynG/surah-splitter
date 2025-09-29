@@ -9,7 +9,15 @@
       "Bash(curl:*)",
       "Bash(python:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(make:*)",
+      "Bash(env)",
+      "Bash(unset:*)",
+      "Bash(docker compose:*)",
+      "Bash(./build.sh)",
+      "Read(//var/folders/v_/d9pkjnjd1h71lxm99gqfmfvh0000gn/T/TemporaryItems/NSIRD_screencaptureui_A9zYQH/**)"
     ],
     "deny": [],
     "ask": []

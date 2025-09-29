@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from collections import defaultdict
 from sklearn.cluster import KMeans
-from surah_splitter.utils.app_logger import logger
+from loguru import logger
 
 
 class PersonalizedLearningService:
@@ -17,7 +17,7 @@ class PersonalizedLearningService:
 
     def __init__(self, user_id: str = "default"):
         self.user_id = user_id
-        self.model_dir = Path("models/personalized")
+        self.model_dir = Path("/app/cache/models/personalized")
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self.user_model_file = self.model_dir / f"{user_id}_model.pkl"
         self.adaptation_data = self._init_adaptation_data()

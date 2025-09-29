@@ -451,11 +451,49 @@ class RealtimeTranscriptionService:
         # Return the most relevant hint
         return hints[0] if hints else None
 
+    def process_audio_stream(self, audio_data: bytes) -> Dict[str, Any]:
+        """Process audio data received from WebSocket stream."""
+        try:
+            # Convert bytes to numpy array
+            audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+
+            # Save to temporary file
+            temp_path = self._save_temp_audio(audio_array)
+
+            # Process the transcription
+            self._process_transcription(temp_path)
+
+            # Get feedback for the current word position
+            feedback = []
+            if self.current_word_index < len(self.reference_words):
+                # Return feedback for the current word
+                feedback = [{
+                    "position": self.current_word_index,
+                    "reference_word": self.reference_words[self.current_word_index] if self.current_word_index < len(self.reference_words) else "",
+                    "color": "current",
+                    "type": "word_feedback"
+                }]
+
+            return {
+                "type": "word_feedback",
+                "word_feedback": feedback,
+                "current_position": self.current_word_index,
+                "overall_accuracy": self.accuracy_tracker.get_overall_accuracy() if hasattr(self, 'accuracy_tracker') else 1.0,
+                "progress": self.get_current_progress()
+            }
+
+        except Exception as e:
+            logger.error(f"Error processing audio stream: {e}")
+            return {
+                "error": str(e),
+                "type": "processing_error"
+            }
+
     def get_current_progress(self) -> Dict[str, Any]:
         """Get current progress through the reference text."""
         total_words = len(self.reference_words)
         progress_percentage = (self.current_word_index / total_words) * 100 if total_words > 0 else 0
-        
+
         return {
             "current_word_index": self.current_word_index,
             "total_words": total_words,

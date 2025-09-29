@@ -318,6 +318,179 @@
             gap: 5px;
         }
 
+        .mode-selector {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .mode-tab {
+            padding: 12px 24px;
+            border: 2px solid transparent;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-tab:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .mode-tab.active {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border-color: #4CAF50;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .mode-description {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 14px;
+            min-height: 50px;
+        }
+
+        .audio-controls {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .audio-controls.show {
+            display: block;
+        }
+
+        .record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #f44336, #da190b);
+            color: white;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(244, 67, 54, 0.4);
+        }
+
+        .record-btn.recording {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            animation: pulse 1.5s infinite;
+        }
+
+        .file-upload {
+            margin-top: 20px;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .file-upload label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #2196F3, #0b7dda);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
+        .reference-input {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .reference-input.show {
+            display: block;
+        }
+
+        .reference-input textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 18px;
+            direction: rtl;
+            font-family: 'Amiri', 'Times New Roman', serif;
+            resize: vertical;
+        }
+
+        .analyze-btn {
+            display: none;
+            margin: 20px auto;
+            padding: 15px 40px;
+            background: linear-gradient(45deg, #9C27B0, #7B1FA2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .analyze-btn.show {
+            display: block;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .analysis-results {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .analysis-results.show {
+            display: block;
+        }
+
         .connection-status {
             position: fixed;
             top: 20px;
@@ -359,8 +532,23 @@
     
     <div class="container">
         <div class="header">
-            <h1>🕌 Real-time Quran Recitation Feedback</h1>
-            <p>Practice your memorization with live word-by-word feedback</p>
+            <h1>🕌 Quran Recitation Analysis</h1>
+            <p>Practice with real-time feedback or submit audio for analysis</p>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <div class="mode-tabs">
+                <button class="mode-tab active" data-mode="live" onclick="switchMode('live')">
+                    🎤 Live Transcription
+                </button>
+                <button class="mode-tab" data-mode="recitation" onclick="switchMode('recitation')">
+                    📝 Recitation Check
+                </button>
+                <button class="mode-tab" data-mode="tajweed" onclick="switchMode('tajweed')">
+                    📿 Tajweed Analysis
+                </button>
+            </div>
         </div>
 
         <!-- Color Legend -->
@@ -416,7 +604,13 @@
             </div>
         </div>
 
-        <div class="controls">
+        <!-- Mode Description -->
+        <div class="mode-description" id="modeDescription">
+            <strong>Live Transcription:</strong> Real-time word-by-word feedback as you recite. Perfect for memorization practice.
+        </div>
+
+        <!-- Controls for Live Mode -->
+        <div class="controls" id="liveControls">
             <button class="btn btn-primary" id="startBtn" onclick="startSession()">
                 🎤 Start Recitation
             </button>
@@ -427,6 +621,33 @@
                 🔄 Reset
             </button>
         </div>
+
+        <!-- Selected Surah Info for GPT Modes -->
+        <div class="reference-input" id="referenceInput">
+            <h3>Selected Reference Text:</h3>
+            <div id="selectedSurahInfo" style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                <p style="margin: 5px 0;">Please select a surah first</p>
+            </div>
+        </div>
+
+        <!-- Audio Controls for GPT Modes -->
+        <div class="audio-controls" id="audioControls">
+            <h3>Record or Upload Audio:</h3>
+            <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+                🎤
+            </button>
+            <p id="recordStatus">Click to start recording</p>
+
+            <div class="file-upload">
+                <input type="file" id="audioFile" accept="audio/*" onchange="handleAudioFile(event)">
+                <label for="audioFile">📁 Upload Audio File</label>
+            </div>
+        </div>
+
+        <!-- Analyze Button for GPT Modes -->
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeAudio()">
+            🔍 Analyze Audio
+        </button>
 
         <div class="status" id="status">
             Select a Surah and click "Start Recitation" to begin
@@ -446,7 +667,7 @@
             <!-- Surah text will be loaded here -->
         </div>
 
-        <div class="feedback-panel">
+        <div class="feedback-panel" id="liveFeedback">
             <div class="accuracy-meter">
                 <div class="accuracy-circle" id="accuracyCircle">0%</div>
                 <div>
@@ -454,10 +675,18 @@
                     <p id="accuracyText">Start reciting to see your accuracy</p>
                 </div>
             </div>
-            
+
             <h4>Recent Words:</h4>
             <div class="recent-words" id="recentWords">
                 <!-- Recent word feedback will appear here -->
+            </div>
+        </div>
+
+        <!-- Analysis Results for GPT Modes -->
+        <div class="analysis-results" id="analysisResults">
+            <h3>Analysis Results</h3>
+            <div id="analysisContent">
+                <!-- Results will appear here -->
             </div>
         </div>
     </div>
@@ -470,9 +699,281 @@
         let wordElements = [];
         let currentWordIndex = 0;
         let recentFeedback = [];
+        let currentMode = 'live';
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentAudioBlob = null;
 
         // API Base URL
         const API_BASE = 'http://localhost:8001';
+
+        // Switch between modes
+        function switchMode(mode) {
+            currentMode = mode;
+
+            // Update tab styling
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.mode === mode) {
+                    tab.classList.add('active');
+                }
+            });
+
+            // Update mode description
+            const descriptions = {
+                'live': '<strong>Live Transcription:</strong> Real-time word-by-word feedback as you recite. Perfect for memorization practice.',
+                'recitation': '<strong>Recitation Check:</strong> Record your recitation with reference text to check accuracy and get detailed feedback.',
+                'tajweed': '<strong>Tajweed Analysis:</strong> Submit your recitation for detailed Tajweed rules analysis and pronunciation feedback.'
+            };
+            document.getElementById('modeDescription').innerHTML = descriptions[mode];
+
+            // Show/hide appropriate UI elements
+            const liveControls = document.getElementById('liveControls');
+            const latencySelector = document.querySelector('.latency-selector');
+            const referenceInput = document.getElementById('referenceInput');
+            const audioControls = document.getElementById('audioControls');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const liveFeedback = document.getElementById('liveFeedback');
+            const analysisResults = document.getElementById('analysisResults');
+            const referenceText = document.getElementById('referenceText');
+            const progressInfo = document.getElementById('progressInfo');
+            const progressBar = document.querySelector('.progress-bar');
+
+            // Reset displays
+            referenceInput.classList.remove('show');
+            audioControls.classList.remove('show');
+            analyzeBtn.classList.remove('show');
+            analysisResults.classList.remove('show');
+
+            if (mode === 'live') {
+                liveControls.style.display = 'flex';
+                latencySelector.style.display = 'block';
+                liveFeedback.style.display = 'block';
+                referenceText.style.display = 'block';
+                progressInfo.style.display = 'block';
+                progressBar.style.display = 'block';
+            } else {
+                liveControls.style.display = 'none';
+                latencySelector.style.display = 'none';
+                liveFeedback.style.display = 'none';
+                referenceText.style.display = 'none';
+                progressInfo.style.display = 'none';
+                progressBar.style.display = 'none';
+                audioControls.classList.add('show');
+
+                // Show reference info for both recitation and tajweed modes
+                if (mode === 'recitation' || mode === 'tajweed') {
+                    referenceInput.classList.add('show');
+                    updateSelectedSurahInfo();
+                }
+            }
+        }
+
+        // Toggle recording for GPT modes
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                });
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    currentAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    document.getElementById('analyzeBtn').classList.add('show');
+                    document.getElementById('recordStatus').textContent = 'Recording complete. Ready to analyze.';
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                document.getElementById('recordBtn').classList.add('recording');
+                document.getElementById('recordStatus').textContent = 'Recording... Click to stop';
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                alert('Could not access microphone. Please check permissions.');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                document.getElementById('recordBtn').classList.remove('recording');
+            }
+        }
+
+        // Handle file upload
+        function handleAudioFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                currentAudioBlob = file;
+                document.getElementById('analyzeBtn').classList.add('show');
+                document.getElementById('recordStatus').textContent = `File loaded: ${file.name}. Click Analyze to process.`;
+            }
+        }
+
+        // Update selected surah info display
+        function updateSelectedSurahInfo() {
+            const infoDiv = document.getElementById('selectedSurahInfo');
+            if (currentSurah) {
+                infoDiv.innerHTML = `
+                    <p style="margin: 5px 0;"><strong>Surah:</strong> ${currentSurah.name} (${currentSurah.english_name})</p>
+                    <p style="margin: 5px 0;"><strong>Number:</strong> ${currentSurah.number}</p>
+                    <p style="margin: 5px 0;"><strong>Verses:</strong> ${currentSurah.number_of_ayahs}</p>
+                    <p style="margin: 5px 0; color: #4CAF50;">✓ Reference text loaded (${currentSurah.text.split(' ').length} words)</p>
+                `;
+            } else {
+                infoDiv.innerHTML = '<p style="margin: 5px 0;">Please select a surah first</p>';
+            }
+        }
+
+        // Analyze audio for GPT modes
+        async function analyzeAudio() {
+            if (!currentAudioBlob) {
+                alert('Please record or upload audio first');
+                return;
+            }
+
+            if (!currentSurah) {
+                alert('Please select a surah first');
+                return;
+            }
+
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '⏳ Analyzing...';
+
+            try {
+                const formData = new FormData();
+                formData.append('audio_file', currentAudioBlob, 'recording.wav');
+                formData.append('language', 'en');
+
+                if (currentSurah) {
+                    formData.append('surah_number', currentSurah.number.toString());
+                    formData.append('surah_name', currentSurah.english_name);
+                }
+
+                let endpoint = '';
+                if (currentMode === 'tajweed') {
+                    endpoint = '/api/audio/analyze/tajweed';
+                    formData.append('include_audio_feedback', 'false');
+                } else if (currentMode === 'recitation') {
+                    endpoint = '/api/audio/analyze/recitation';
+                    // Use the surah text as reference
+                    formData.append('reference_text', currentSurah.text);
+                }
+
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', errorText);
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayAnalysisResults(data);
+
+            } catch (error) {
+                console.error('Error analyzing audio:', error);
+                alert('Analysis failed: ' + error.message);
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '🔍 Analyze Audio';
+            }
+        }
+
+        // Display analysis results
+        function displayAnalysisResults(data) {
+            const resultsDiv = document.getElementById('analysisResults');
+            const contentDiv = document.getElementById('analysisContent');
+
+            resultsDiv.classList.add('show');
+
+            if (!data.success) {
+                contentDiv.innerHTML = `<p style="color: #f44336;">Error: ${data.error}</p>`;
+                return;
+            }
+
+            const results = data.data;
+            let html = '';
+
+            if (currentMode === 'tajweed') {
+                html = '<h4>Tajweed Analysis</h4>';
+                if (results.scores) {
+                    html += '<div style="margin-bottom: 20px;">';
+                    for (const [key, value] of Object.entries(results.scores)) {
+                        const percentage = value * 20;
+                        html += `
+                            <div style="margin: 10px 0;">
+                                <strong>${key}:</strong>
+                                <div style="background: rgba(255,255,255,0.2); height: 20px; border-radius: 10px; overflow: hidden;">
+                                    <div style="background: #4CAF50; height: 100%; width: ${percentage}%; transition: width 0.3s;"></div>
+                                </div>
+                                <span>${value.toFixed(1)}/5.0</span>
+                            </div>`;
+                    }
+                    html += '</div>';
+                }
+                if (results.issues && results.issues.length > 0) {
+                    html += '<h4>Issues Found:</h4><ul>';
+                    results.issues.forEach(issue => {
+                        html += `<li><strong>${issue.rule}:</strong> ${issue.description}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                if (results.overall_comment) {
+                    html += `<p><strong>Overall Feedback:</strong> ${results.overall_comment}</p>`;
+                }
+            } else if (currentMode === 'recitation') {
+                html = '<h4>Recitation Accuracy Check</h4>';
+                if (results.accuracy_score !== undefined) {
+                    const accuracy = results.accuracy_score;
+                    const color = accuracy >= 90 ? '#4CAF50' : accuracy >= 70 ? '#FFC107' : '#f44336';
+                    html += `<h2 style="color: ${color};">Accuracy: ${accuracy.toFixed(1)}%</h2>`;
+                }
+                if (results.missed_words && results.missed_words.length > 0) {
+                    html += `<p><strong>Missed Words (${results.missed_words.length}):</strong> ${results.missed_words.join(', ')}</p>`;
+                }
+                if (results.added_words && results.added_words.length > 0) {
+                    html += `<p><strong>Extra Words (${results.added_words.length}):</strong> ${results.added_words.join(', ')}</p>`;
+                }
+                if (results.mispronounced_words && results.mispronounced_words.length > 0) {
+                    html += '<p><strong>Pronunciation Issues:</strong></p><ul>';
+                    results.mispronounced_words.forEach(item => {
+                        html += `<li>${item.word}: ${item.issue}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                if (results.feedback) {
+                    html += `<p><strong>Feedback:</strong> ${results.feedback}</p>`;
+                }
+            }
+
+            contentDiv.innerHTML = html;
+        }
 
         // Initialize WebSocket connection
         function connectWebSocket() {
@@ -546,6 +1047,7 @@
                         const response = await fetch(`${API_BASE}/api/surahs/${this.value}`);
                         currentSurah = await response.json();
                         displaySurahText(currentSurah);
+                        updateSelectedSurahInfo();
                     }
                 });
             } catch (error) {
@@ -734,6 +1236,9 @@
                 // Connect WebSocket with session ID
                 connectWebSocket();
 
+                // Start capturing audio and sending to WebSocket
+                startLiveAudioCapture();
+
                 isRecording = true;
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = false;
@@ -757,11 +1262,69 @@
             }
         }
 
+        // Start live audio capture for WebSocket streaming
+        async function startLiveAudioCapture() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        sampleRate: 16000
+                    }
+                });
+
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                processor.onaudioprocess = (e) => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        // Convert float32 to int16
+                        const output = new Int16Array(inputData.length);
+                        for (let i = 0; i < inputData.length; i++) {
+                            output[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                        }
+
+                        // Convert to base64 and send
+                        const base64Audio = btoa(String.fromCharCode(...new Uint8Array(output.buffer)));
+                        ws.send(JSON.stringify({
+                            type: 'audio_chunk',
+                            audio: base64Audio
+                        }));
+                    }
+                };
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                // Store references to stop later
+                window.audioStream = stream;
+                window.audioProcessor = processor;
+                window.audioContext = audioContext;
+            } catch (error) {
+                console.error('Error starting audio capture:', error);
+                updateStatus('Error: Could not access microphone');
+            }
+        }
+
         // Stop recitation session
         async function stopSession() {
             if (!currentSessionId) return;
 
             try {
+                // Stop audio capture
+                if (window.audioStream) {
+                    window.audioStream.getTracks().forEach(track => track.stop());
+                }
+                if (window.audioProcessor) {
+                    window.audioProcessor.disconnect();
+                }
+                if (window.audioContext) {
+                    window.audioContext.close();
+                }
+
                 const response = await fetch(`${API_BASE}/api/sessions/${currentSessionId}/stop`, {
                     method: 'POST'
                 });
@@ -816,6 +1379,8 @@
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             loadSurahs();
+            // Start with live mode by default
+            switchMode('live');
         });
     </script>
 </body>
